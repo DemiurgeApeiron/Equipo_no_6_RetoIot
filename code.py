@@ -1,6 +1,8 @@
 from random import randint
 import mysql.connector
 import random
+from datetime import datetime as dt
+from pytz import timezone
 
 
 def makeConnection():
@@ -20,25 +22,24 @@ def makeConnection():
             print(err)
 
 
+def addUser(cursor, usuario):
+    query = f'INSERT INTO Person(username) values("{usuario}");'
+    cursor.execute(query)
+
+
 def incert(cursor, query_heart_rythm, query_heart_oxygen, risk, usuario):
+    zonaHoraria = timezone("America/Mexico_City")
+    fechaHora = dt.now(zonaHoraria)
+    fechaHoraFormato = fechaHora.strftime("%Y-%m-%d %H:%M:%S")
+    queryGetName = f"SELECT * FROM Person WHERE username = 'user-{usuario}'"
+    cursor.execute(queryGetName)
+    idUser = cursor.fetchone()[0]
 
-    for i in usuario:
-        query = f'INSERT INTO Person(username) values("{i}");'
-        cursor.execute(query)
+    query = f'INSERT INTO Biometrics(ID_person, oxigen_level, Heart_rythm, date) values({idUser}, "{query_heart_oxygen}", "{query_heart_rythm}", "{fechaHoraFormato}");'
+    cursor.execute(query)
 
-    for i in range(len(query_heart_rythm)):
-        queryGetName = f"SELECT * FROM Person WHERE username = 'user-{i % 4}'"
-        cursor.execute(queryGetName)
-        query = f'INSERT INTO Biometrics(ID_person, oxigen_level, Heart_rythm) values({cursor.fetchone()[0]}, "{query_heart_oxygen[i]}", "{query_heart_rythm[i]}");'
-        cursor.execute(query)
-
-    for i in risk:
-        queryGetName = f"SELECT * FROM Person WHERE username = 'user-{i % 4}'"
-        cursor.execute(queryGetName)
-        query = (
-            f"INSERT INTO State(ID_person, risk) values({cursor.fetchone()[0]}, {i});"
-        )
-        cursor.execute(query)
+    query = f"INSERT INTO State(ID_person, risk, date) values({idUser}, {risk}, '{fechaHoraFormato}');"
+    cursor.execute(query)
 
 
 def printQuerry(cursor, table):
@@ -49,22 +50,16 @@ def printQuerry(cursor, table):
 
 
 def main():
-    query_heart_rythm = []
-    query_heart_oxygen = []
-    risk = []
-    usuario = []
-    for i in range(0, 5000):
-        query_heart_rythm.append(randint(0, 1024))
-        query_heart_oxygen.append(randint(0, 1024))
-        risk.append(0)
-
-    for i in range(1, 5):
-        usuario.append(f"user-{i % 4}")
-
     cnx = makeConnection()
     cursor = cnx.cursor()
-    incert(cursor, query_heart_rythm, query_heart_oxygen, risk, usuario)
-    printQuerry(cursor, "Biometrics")
+    nunOfUsers = 0
+    for i in range(1, 5):
+        addUser(cursor, f"user-{i % 4}")
+        nunOfUsers += 1
+
+    for i in range(0, 5000):
+        incert(cursor, randint(0, 1024), randint(0, 1024), 0, i % nunOfUsers)
+
     cnx.commit()
     cnx.close()
 
