@@ -1,6 +1,10 @@
 from random import randint
 import mysql.connector
 import random
+import numpy as np
+import pandas as pd
+import serial
+import matplotlib.pyplot as plt
 from datetime import datetime as dt
 from pytz import timezone
 
@@ -49,7 +53,28 @@ def printQuerry(cursor, table):
         print(result)
 
 
-def main():
+def expMovingAverages(hr, ox, alfa=0.9):
+    listaSuavisadaHr = []
+    listaSuavisadaHr.append(hr[-1])
+    for i in hr:
+        listaSuavisadaHr.append(alfa * i + (1 - alfa) * listaSuavisadaHr[-1])
+
+    listaSuavisadaOx = []
+    listaSuavisadaOx.append(ox[-1])
+    for i in ox:
+        listaSuavisadaOx.append(alfa * i + (1 - alfa) * listaSuavisadaOx[-1])
+
+    return (listaSuavisadaHr, listaSuavisadaOx)
+
+
+def simpleMovingAverages(hr, ox, k=3):
+    df = pd.DataFrame(list(zip(hr, ox)), columns=["ir", "red"])
+    df = df.rolling(k, min_periods=1).mean()
+
+    return df
+
+
+def dataBaseIncertion(hr, ox):
     cnx = makeConnection()
     cursor = cnx.cursor()
     nunOfUsers = 0
@@ -60,8 +85,55 @@ def main():
     for i in range(0, 5000):
         incert(cursor, randint(0, 1024), randint(0, 1024), 0, i % nunOfUsers)
 
-    cnx.commit()
+    # cnx.commit()
     cnx.close()
+
+
+def dataPlot(data, time):
+    hr, ox = data
+    hr.pop()
+    ox.pop()
+    plt.plot(time, hr, label="h1", color="r")
+    plt.plot(time, ox, label="ox", color="b")
+    plt.show()
+
+
+def dataProcesing(irList, redList, time):
+    tupMAS = simpleMovingAverages(redList, irList).values.tolist()
+    tupMAE = expMovingAverages(redList, irList, 0.3)
+    # dataBaseIncertion(*tupMAE)
+    # dataPlot(tupMAS, time)
+    dataPlot(tupMAE, time)
+
+
+def main():
+
+    irList = []
+    redList = []
+    time = []
+    ser = serial.Serial("/dev/cu.usbmodem14101", 115200)
+    while 1:
+        try:
+            lineBytes = ser.readline()
+            line = lineBytes.decode("ascii")
+            line = line.rstrip()
+            partes = line.split(";")
+            ir = int(partes[0].split(":")[1])
+            red = int(partes[1].split(":")[1])
+            milis = int(partes[2].split(":")[1])
+            irList.append(ir)
+            redList.append(red)
+            time.append(milis)
+            print(ir)
+            if len(irList) >= 5000:
+                dataProcesing(irList, redList, time)
+                irList.clear()
+                redList.clear()
+                time.clear()
+
+        except Exception as e:
+            print(e)
+            continue
 
 
 main()
