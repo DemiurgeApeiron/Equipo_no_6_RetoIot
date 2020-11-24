@@ -293,18 +293,16 @@ def simpleMovingAverages(hr, ox, k=3):
     return df
 
 
-def dataBaseIncertion(hr, ox):
+def dataBaseIncertion(hr, ox, user):
     cnx = makeConnection()
     cursor = cnx.cursor()
     nunOfUsers = 0
-    for i in range(1, 5):
-        addUser(cursor, f"user-{i % 4}")
-        nunOfUsers += 1
 
-    for i in range(0, 5000):
-        incert(cursor, randint(0, 1024), randint(0, 1024), 0, i % nunOfUsers)
+    addUser(cursor, f"user-{user}")
+    nunOfUsers += 1
 
-    # cnx.commit()
+    incert(cursor, hr, ox, 0, user)
+    cnx.commit()
     cnx.close()
 
 
@@ -393,6 +391,8 @@ def dataProcesing(irList, redList, time):
     if hr == 0:
         hr = "muestra no valida"
         ox = "muestra no valida"
+
+    dataBaseIncertion(hr, ox, 1)
     print("pri")
     print(f"hr: {hr}, spo2: {ox}")
     # dataPlot(tupMAE, time)
