@@ -111,7 +111,7 @@ def calc_hr_and_spo2(ir_data, red_data):
             ir_ac = (
                 ir_data[ir_dc_max_index] - ir_ac
             )  # subtract linear DC components from raw
-
+            print("calc")
             nume = red_ac * ir_dc_max
             denom = ir_ac * red_dc_max
             if (denom > 0 and i_ratio_count < 5) and nume != 0:
@@ -272,18 +272,18 @@ def printQuerry(cursor, table):
         print(result)
 
 
-def expMovingAverages(hr, ox, alfa=0.9):
-    listaSuavisadaHr = []
-    listaSuavisadaHr.append(hr[-1])
-    for i in hr:
-        listaSuavisadaHr.append(alfa * i + (1 - alfa) * listaSuavisadaHr[-1])
+def expMovingAverages(ir, red, alfa=0.9):
+    listaSuavisadaRed = []
+    listaSuavisadaRed.append(red[0])
+    for i in red:
+        listaSuavisadaRed.append(alfa * i + (1 - alfa) * listaSuavisadaRed[-1])
 
-    listaSuavisadaOx = []
-    listaSuavisadaOx.append(ox[-1])
-    for i in ox:
-        listaSuavisadaOx.append(alfa * i + (1 - alfa) * listaSuavisadaOx[-1])
+    listaSuavisadaIr = []
+    listaSuavisadaIr.append(ir[-1])
+    for i in ir:
+        listaSuavisadaIr.append(alfa * i + (1 - alfa) * listaSuavisadaIr[-1])
 
-    return (listaSuavisadaHr, listaSuavisadaOx)
+    return (listaSuavisadaIr, listaSuavisadaRed)
 
 
 def simpleMovingAverages(hr, ox, k=3):
@@ -312,17 +312,90 @@ def dataPlot(data, time):
     hr, ox = data
     hr.pop()
     ox.pop()
-    plt.plot(time, hr, label="h1", color="r")
+    plt.plot(time, hr, label="hr", color="r")
     plt.plot(time, ox, label="ox", color="b")
     plt.show()
 
 
 def dataProcesing(irList, redList, time):
+    print("MA")
     tupMAS = simpleMovingAverages(redList, irList).values.tolist()
-    tupMAE = expMovingAverages(redList, irList, 0.3)
+    tupMAE = expMovingAverages(redList, irList, 0.9)
     # dataBaseIncertion(*tupMAE)
     # dataPlot(tupMAS, time)
-    dataPlot(tupMAE, time)
+
+    ir1 = irList[0:100]
+    ir2 = irList[100:200]
+    ir3 = irList[200:300]
+    ir4 = irList[300:400]
+    ir5 = irList[400:500]
+    ir6 = irList[500:600]
+    ir7 = irList[600:700]
+    ir8 = irList[700:800]
+    ir9 = irList[800:900]
+    ir10 = irList[900:1000]
+
+    red1 = redList[0:100]
+    red2 = redList[100:200]
+    red3 = redList[200:300]
+    red4 = redList[300:400]
+    red5 = redList[400:500]
+    red6 = redList[500:600]
+    red7 = redList[600:700]
+    red8 = redList[700:800]
+    red9 = redList[800:900]
+    red10 = redList[900:1000]
+
+    hr1, hr_valid1, spo21, spo2_valid1 = calc_hr_and_spo2(ir1, red1)
+    hr2, hr_valid2, spo22, spo2_valid2 = calc_hr_and_spo2(ir2, red2)
+    hr3, hr_valid3, spo23, spo2_valid3 = calc_hr_and_spo2(ir3, red3)
+    hr4, hr_valid4, spo24, spo2_valid4 = calc_hr_and_spo2(ir4, red4)
+    hr5, hr_valid5, spo25, spo2_valid5 = calc_hr_and_spo2(ir5, red5)
+    hr6, hr_valid6, spo26, spo2_valid6 = calc_hr_and_spo2(ir6, red6)
+    hr7, hr_valid7, spo27, spo2_valid7 = calc_hr_and_spo2(ir7, red7)
+    hr8, hr_valid8, spo28, spo2_valid8 = calc_hr_and_spo2(ir8, red8)
+    hr9, hr_valid9, spo29, spo2_valid9 = calc_hr_and_spo2(ir9, red9)
+    hr10, hr_valid10, spo210, spo2_valid10 = calc_hr_and_spo2(ir10, red10)
+
+    hr = 0
+    ox = 0
+    if hr_valid1 != False and spo21 > 80:
+        hr = hr1
+        ox = spo21
+    if hr_valid2 != False and spo22 > 80 and spo22 > ox:
+        hr = hr2
+        ox = spo22
+    if hr_valid3 != False and spo23 > 80 and spo23 > ox:
+        hr = hr3
+        ox = spo23
+    if hr_valid4 != False and spo24 > 80 and spo24 > ox:
+        hr = hr4
+        ox = spo24
+    if hr_valid5 != False and spo25 > 80 and spo25 > ox:
+        hr = hr5
+        ox = spo25
+    if hr_valid6 != False and spo26 > 80 and spo26 > ox:
+        hr = hr6
+        ox = spo26
+    if hr_valid7 != False and spo27 > 80 and spo27 > ox:
+        hr = hr7
+        ox = spo27
+    if hr_valid8 != False and spo28 > 80 and spo28 > ox:
+        hr = hr8
+        ox = spo28
+    if hr_valid9 != False and spo29 > 80 and spo29 > ox:
+        hr = hr9
+        ox = spo29
+    if hr_valid10 != False and spo210 > 80 and spo210 > ox:
+        hr = hr10
+        ox = spo210
+
+    if hr == 0:
+        hr = "muestra no valida"
+        ox = "muestra no valida"
+    print("pri")
+    print(f"hr: {hr}, spo2: {ox}")
+    # dataPlot(tupMAE, time)
 
 
 def main():
@@ -331,7 +404,8 @@ def main():
     redList = []
     time = []
     ser = serial.Serial("/dev/cu.usbmodem14101", 115200)
-    while 1:
+    recive = True
+    while recive:
         try:
             lineBytes = ser.readline()
             line = lineBytes.decode("ascii")
@@ -343,12 +417,14 @@ def main():
             irList.append(ir)
             redList.append(red)
             time.append(milis)
-            print(ir)
-            if len(irList) >= 5000:
+            print(f"ir: {ir}, red: {red}")
+            if len(irList) >= 1000:
+                recive = False
                 dataProcesing(irList, redList, time)
                 irList.clear()
                 redList.clear()
                 time.clear()
+                break
 
         except Exception as e:
             print(e)
