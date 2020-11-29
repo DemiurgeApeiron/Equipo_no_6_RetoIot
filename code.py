@@ -7,6 +7,7 @@ import serial
 import matplotlib.pyplot as plt
 from datetime import datetime as dt
 from pytz import timezone
+import socket
 
 
 import numpy as np
@@ -111,7 +112,6 @@ def calc_hr_and_spo2(ir_data, red_data):
             ir_ac = (
                 ir_data[ir_dc_max_index] - ir_ac
             )  # subtract linear DC components from raw
-            print("calc")
             nume = red_ac * ir_dc_max
             denom = ir_ac * red_dc_max
             if (denom > 0 and i_ratio_count < 5) and nume != 0:
@@ -231,7 +231,7 @@ def remove_close_peaks(n_peaks, ir_valley_locs, x, min_dist):
 def makeConnection():
     try:
         cnx = mysql.connector.connect(
-            user="root", password="42admin", host="127.0.0.1", database="healthData"
+            user="root", password="42admin420", host="127.0.0.1", database="healthData"
         )
         return cnx
 
@@ -243,11 +243,6 @@ def makeConnection():
             print("Database does not exist")
         else:
             print(err)
-
-
-def addUser(cursor, usuario):
-    query = f'INSERT INTO Person(username) values("{usuario}");'
-    cursor.execute(query)
 
 
 def incert(cursor, query_heart_rythm, query_heart_oxygen, risk, usuario):
@@ -263,6 +258,23 @@ def incert(cursor, query_heart_rythm, query_heart_oxygen, risk, usuario):
 
     query = f"INSERT INTO State(ID_person, risk, date) values({idUser}, {risk}, '{fechaHoraFormato}');"
     cursor.execute(query)
+
+
+def dataBaseIncertion(hr, ox, user):
+    cnx = makeConnection()
+    cursor = cnx.cursor()
+
+    queryGetName = f"SELECT * FROM Person WHERE username = 'user-{user}'"
+    cursor.execute(queryGetName)
+    idUser = cursor.fetchone()
+    if idUser == None:
+        print("1 ", idUser)
+        query = f'INSERT INTO Person(username) values("user-{user}");'
+        cursor.execute(query)
+
+    incert(cursor, hr, ox, 0, user)
+    cnx.commit()
+    cnx.close()
 
 
 def printQuerry(cursor, table):
@@ -293,19 +305,6 @@ def simpleMovingAverages(hr, ox, k=3):
     return df
 
 
-def dataBaseIncertion(hr, ox, user):
-    cnx = makeConnection()
-    cursor = cnx.cursor()
-    nunOfUsers = 0
-
-    addUser(cursor, f"user-{user}")
-    nunOfUsers += 1
-
-    incert(cursor, hr, ox, 0, user)
-    cnx.commit()
-    cnx.close()
-
-
 def dataPlot(data, time):
     hr, ox = data
     hr.pop()
@@ -315,8 +314,8 @@ def dataPlot(data, time):
     plt.show()
 
 
-def dataProcesing(irList, redList, time):
-    print("MA")
+def dataProcesing(irList, redList, time, user):
+    mesage = "Puede que estes en riesgo"
     tupMAS = simpleMovingAverages(redList, irList).values.tolist()
     tupMAE = expMovingAverages(redList, irList, 0.9)
     # dataBaseIncertion(*tupMAE)
@@ -389,46 +388,75 @@ def dataProcesing(irList, redList, time):
         ox = spo210
 
     if hr == 0:
-        hr = "muestra no valida"
-        ox = "muestra no valida"
+        hr = -1
+        ox = -1
+    else:
+        dataBaseIncertion(hr, ox, user)
 
-    dataBaseIncertion(hr, ox, 1)
-    print("pri")
+    if ox > 93:
+        mesage = "Estas saludable"
     print(f"hr: {hr}, spo2: {ox}")
+    return mesage
     # dataPlot(tupMAE, time)
 
 
-def main():
+def sendResult(s, result):
+    s.connect(("192.168.1.119", 1337))
+    result += "\r\n\r\n"
+    result = result.encode("utf-8")
+    # dataFromClient = s.recv(1024)
+    while 1:
+        # dataFromClient = s.recv(1024)
+        print("send")
+        s.send(result)
 
+
+def reciveData():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    s.bind(("0.0.0.0", 1337))
+    result = "Error"
     irList = []
     redList = []
     time = []
-    ser = serial.Serial("/dev/cu.usbmodem14101", 115200)
+    usert = 0
+    # ser = serial.Serial("/dev/cu.usbmodem14101", 9600)
     recive = True
     while recive:
         try:
-            lineBytes = ser.readline()
+            lineBytes = lineBytes = s.recv(1024)
             line = lineBytes.decode("ascii")
             line = line.rstrip()
             partes = line.split(";")
             ir = int(partes[0].split(":")[1])
             red = int(partes[1].split(":")[1])
             milis = int(partes[2].split(":")[1])
+            user = int(partes[3].split(":")[1])
+            cont = int(partes[4].split(":")[1])
             irList.append(ir)
             redList.append(red)
             time.append(milis)
-            print(f"ir: {ir}, red: {red}")
-            if len(irList) >= 1000:
-                recive = False
-                dataProcesing(irList, redList, time)
+            # print(partes)
+            print(f"ir: {ir}, red: {red}, user: {user}, size: {cont}")
+            if usert != user:
+                usert = user
+                irList.clear()
+                redList.clear()
+                time.clear()
+            if cont >= 1000:
+                recive = True
+                result = dataProcesing(irList, redList, time, user)
                 irList.clear()
                 redList.clear()
                 time.clear()
                 break
-
         except Exception as e:
             print(e)
             continue
+    sendResult(s, result)
+
+
+def main():
+    reciveData()
 
 
 main()
