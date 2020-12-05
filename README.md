@@ -2,8 +2,8 @@
 
 Python = code.py
 
-arduono = arduinoconF.ino
+Arduino = arduinoconF.ino
 
-tableau = IOT Graphs.twbx
+Tableau = IOT Graphs.twbx
 
-sql = healthData.sql 
+Sql = healthData.sql 
